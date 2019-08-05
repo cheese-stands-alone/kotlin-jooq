@@ -445,13 +445,13 @@ open class KotlinJooqGenerator : JavaGenerator() {
             .addStatement("""append("$className(")""")
             .apply {
                 if (columns.size > 1) columns.take(columns.size - 1).forEach {
-                    val name = it.getPropertyName()
+                    val name = it.getPropertyName().replace("\$", "\\\$")
                     addStatement("""append("$name = ")""")
                     addStatement("append($name)")
                     addStatement("""append(", ")""")
                 }
                 columns.last().let {
-                    val name = it.getPropertyName()
+                    val name = it.getPropertyName().replace("\$", "\\\$")
                     addStatement("""append("$name = ")""")
                     addStatement("append($name)")
                 }
