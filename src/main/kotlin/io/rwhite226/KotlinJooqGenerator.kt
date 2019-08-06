@@ -110,6 +110,7 @@ open class KotlinJooqGenerator : JavaGenerator() {
                     if (superClass != null) superclass(superClass)
                     if (generateInterfaces() && interfaceType != null) addSuperinterface(interfaceType)
                     if (columns.size > 255) {
+                        addModifiers(KModifier.OPEN)
                         if (generateImmutablePojos()) {
                             if (interfaceType == null) throw Exception(
                                 "Immutable pojo generated with more than 255 columns must have an interface"
@@ -421,7 +422,6 @@ open class KotlinJooqGenerator : JavaGenerator() {
                     .addMember("fraction = %L", fraction)
                     .useSiteTarget(AnnotationSpec.UseSiteTarget.GET)
                     .build()
-
             }
         }
         return annotations
@@ -557,7 +557,7 @@ open class KotlinJooqGenerator : JavaGenerator() {
                 ) { it.getPropertyName() })
         )
         else if (!generateImmutablePojos()) {
-            columns.chunked(255).mapIndexed { index, columnChunk ->
+            columns.chunked(200).mapIndexed { index, columnChunk ->
                 FunSpec.builder("copy${index + 1}")
                     .addModifiers(KModifier.OPEN)
                     .addParameters(columnChunk.map {
@@ -581,7 +581,7 @@ open class KotlinJooqGenerator : JavaGenerator() {
                     .addStatement("return copy")
             }
         } else {
-            columns.chunked(255).mapIndexed { index, columnChunk ->
+            columns.chunked(200).mapIndexed { index, columnChunk ->
                 FunSpec.builder("copy${index + 1}")
                     .addModifiers(KModifier.OPEN)
                     .addParameters(columnChunk.map {
