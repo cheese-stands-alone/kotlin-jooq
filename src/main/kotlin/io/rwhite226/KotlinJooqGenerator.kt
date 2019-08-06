@@ -44,12 +44,13 @@ open class KotlinJooqGenerator : JavaGenerator() {
         }.get(this) as Database
     }
 
-    // Samae thing as isoDate in superclass but that is private
+    // Same thing as isoDate in superclass but that is private
     open val date: String = DatatypeConverter.printDateTime(Calendar.getInstance(TimeZone.getTimeZone("UTC")))
 
     open val micronaut by lazy { db.properties.getProperty("micronaut") == "true" }
-
     open val dataClasses by lazy { db.properties.getProperty("dataclasses") == "true" }
+    open val copy by lazy { db.properties.getProperty("copy") == "true" }
+    open val destructuring by lazy { db.properties.getProperty("destructuring") == "true" }
 
     /**
      *  overrideing the strategy to get around issues with how kotlin deals with getter and setters for paramaters that
@@ -189,6 +190,11 @@ open class KotlinJooqGenerator : JavaGenerator() {
                     }
                     if (!isDataClass && generatePojosToString())
                         addFunction(buildToString(pojoType.simpleName, columns).build())
+
+                    if (copy && !isDataClass) buildCopyFun(columns, pojoType, interfaceType)
+                        .forEach { addFunction(it.build()) }
+
+                    if (destructuring) buildDestructuring(columns).forEach { addFunction(it.build()) }
                 }
                 .addSuperinterfaces(
                     getStrategy().getJavaClassImplements(table, mode).filter { !it.isNullOrBlank() }.map {
@@ -522,5 +528,102 @@ open class KotlinJooqGenerator : JavaGenerator() {
                 }
             }
         } else super.newJavaWriter(file)
+    }
+
+    open fun buildCopyFun(
+        columns: List<ColumnDefinition>,
+        pojoType: ClassName,
+        interfaceType: ClassName?
+    ): List<FunSpec.Builder> {
+        return if (columns.size < 255) listOf(
+            FunSpec.builder("copy")
+                .addModifiers(KModifier.OPEN)
+                .addParameters(columns.map {
+                    val name = it.getPropertyName()
+                    ParameterSpec.builder(
+                        name = name,
+                        type = getJavaType(it.getType(resolver(Mode.POJO))).toClassName()
+                    )
+                        .defaultValue("%L", "this.$name")
+                        .build()
+                })
+                .returns(pojoType)
+                .addStatement("return %L", columns.joinToString(
+                    prefix = "$pojoType(",
+                    postfix = ")",
+                    separator = ", "
+                ) { it.getPropertyName() })
+        )
+        else if (!generateImmutablePojos()) {
+            columns.chunked(255).mapIndexed { index, columnChunk ->
+                FunSpec.builder("copy${index + 1}")
+                    .addModifiers(KModifier.OPEN)
+                    .addParameters(columnChunk.map {
+                        val name = it.getPropertyName()
+                        ParameterSpec.builder(
+                            name = name,
+                            type = getJavaType(it.getType(resolver(Mode.POJO))).toClassName()
+                        )
+                            .defaultValue("%L", "this.$name")
+                            .build()
+                    })
+                    .returns(pojoType)
+                    .addStatement("val copy = $pojoType()")
+                    .addStatement(
+                        "%L",
+                        columns.joinToString(separator = "\n") {
+                            val name = it.getPropertyName()
+                            "copy.$name = $name"
+                        }
+                    )
+                    .addStatement("return copy")
+            }
+        } else {
+            columns.chunked(255).mapIndexed { index, columnChunk ->
+                FunSpec.builder("copy${index + 1}")
+                    .addModifiers(KModifier.OPEN)
+                    .addParameters(columnChunk.map {
+                        val name = it.getPropertyName()
+                        ParameterSpec.builder(
+                            name = name,
+                            type = getJavaType(it.getType(resolver(Mode.POJO))).toClassName()
+                        )
+                            .defaultValue("this.$name")
+                            .build()
+                    })
+                    .returns(pojoType)
+                    .addStatement(
+                        "return $pojoType(%L)",
+                        TypeSpec.anonymousClassBuilder()
+                            .addProperties(columns.map { column ->
+                                val name = column.getPropertyName()
+                                PropertySpec.builder(
+                                    name = name,
+                                    type = getJavaType(column.getType(resolver(Mode.POJO))).toClassName()
+                                )
+                                    .addModifiers(KModifier.OVERRIDE)
+                                    .mutable(false)
+                                    .apply {
+                                        if (columnChunk.contains(column)) initializer(name)
+                                        else initializer("this@$pojoType.$name")
+                                    }
+                                    .build()
+                            })
+                            .addSuperinterface(interfaceType!!)
+                            .build()
+                    )
+            }
+        }
+    }
+
+    open fun buildDestructuring(columns: List<ColumnDefinition>): List<FunSpec.Builder> {
+        return if (columns.size <= 5) {
+            columns.mapIndexed { index, columnDefinition ->
+                FunSpec.builder("component${index + 1}")
+                    .addModifiers(KModifier.OPERATOR, KModifier.OPEN)
+                    .returns(getJavaType(columnDefinition.getType(resolver(Mode.POJO))).toClassName())
+                    .addStatement("return %L", columnDefinition.getPropertyName())
+            }
+        } else emptyList()
     }
 }
