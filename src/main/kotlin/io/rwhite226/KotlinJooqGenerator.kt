@@ -414,9 +414,11 @@ open class KotlinJooqGenerator : JavaGenerator() {
                     .build()
 
             } else if (propType.simpleName == "BigDecimal" || propType.simpleName == "BigInteger") {
+                val fraction = columnDefinition.getType(resolver()).scale
+                val integer = columnDefinition.getType(resolver()).precision - fraction
                 annotations += AnnotationSpec.builder(digitsAnnotation)
-                    .addMember("integer = %L", columnDefinition.getType(resolver()).precision)
-                    .addMember("fraction = %L", columnDefinition.getType(resolver()).scale)
+                    .addMember("integer = %L", integer)
+                    .addMember("fraction = %L", fraction)
                     .useSiteTarget(AnnotationSpec.UseSiteTarget.GET)
                     .build()
 
