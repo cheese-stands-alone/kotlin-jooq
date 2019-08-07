@@ -20,6 +20,9 @@ class BetterNamingStrategy : DefaultGeneratorStrategy() {
             Mode.RECORD -> append("Record")
             Mode.DAO -> append("Dao")
             Mode.INTERFACE -> insert(0, "I")
+            Mode.POJO -> definition.database.properties.getProperty("pojo_append")?.let { 
+                if(it.isNotBlank()) append(it)
+            }
         }
     }
 
