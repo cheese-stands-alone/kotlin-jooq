@@ -7,22 +7,25 @@ import org.jooq.meta.*
 class BetterNamingStrategy : DefaultGeneratorStrategy() {
 
     open fun getJavaClassName0(definition: Definition, mode: Mode): String = buildString {
-        definition.outputName
+        val words = definition.outputName
             .replace(' ', '_')
             .replace('-', '_')
             .replace('.', '_')
             .split('_')
-            .forEach { word ->
-                val normalized = if(word.length > 2 && word.all { it.isUpperCase() }) word.toLowerCase() else word
-                if (normalized.firstOrNull()?.isDigit() == true) append('_')
-                append(normalized.capitalize())
+            .map { it.capitalize() }
+            .let { words ->
+                if (words.all { it.isUpperCase() }) words.map { it.toLowerCase().capitalize() } else words
             }
+
+        if (words.firstOrNull()?.firstOrNull()?.isDigit() == true) append('_')
+        words.forEach { append(it) }
+
         when (mode) {
             Mode.RECORD -> append("Record")
             Mode.DAO -> append("Dao")
             Mode.INTERFACE -> insert(0, "I")
-            Mode.POJO -> definition.database.properties.getProperty("pojo_append")?.let { 
-                if(it.isNotBlank()) append(it)
+            Mode.POJO -> definition.database.properties.getProperty("pojo_append")?.let {
+                if (it.isNotBlank()) append(it)
             }
         }
     }
