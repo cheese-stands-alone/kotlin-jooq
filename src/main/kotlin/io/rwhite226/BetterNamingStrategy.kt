@@ -14,6 +14,7 @@ class BetterNamingStrategy : DefaultGeneratorStrategy() {
             .split('_')
             .forEach { word ->
                 val normalized = if(word.length > 2 && word.all { it.isUpperCase() }) word.toLowerCase() else word
+                if (normalized.firstOrNull()?.isDigit() == true) append('_')
                 append(normalized.capitalize())
             }
         when (mode) {
