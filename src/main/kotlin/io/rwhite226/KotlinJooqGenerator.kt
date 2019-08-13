@@ -36,6 +36,14 @@ open class KotlinJooqGenerator : JavaGenerator() {
             .copy(nullable = false)
         val introspectedAnnotation = ClassName.bestGuess("io.micronaut.core.annotation.Introspected")
             .copy(nullable = false)
+        val columnAnnotation = ClassName.bestGuess("javax.persistence.Column")
+            .copy(nullable = false)
+        val idAnnotation = ClassName.bestGuess("javax.persistence.Id")
+            .copy(nullable = false)
+        val generatedValueAnnotation = ClassName.bestGuess("javax.persistence.GeneratedValue")
+            .copy(nullable = false)
+        val identityType = ClassName.bestGuess("javax.persistence.GenerationType.IDENTITY")
+            .copy(nullable = false)
     }
 
     val db: Database by lazy {
@@ -399,30 +407,61 @@ open class KotlinJooqGenerator : JavaGenerator() {
     ): List<AnnotationSpec> {
         val annotations = mutableListOf<AnnotationSpec>()
         val propType = getJavaType(columnDefinition.getType(resolver(mode))).toClassName()
+        val type = columnDefinition.getType(resolver())
         if (generateValidationAnnotations()) {
-            if (!columnDefinition.getType(resolver()).isNullable &&
-                !columnDefinition.getType(resolver()).isDefaulted &&
-                !columnDefinition.getType(resolver()).isIdentity
+            if (!type.isNullable &&
+                !type.isDefaulted &&
+                !type.isIdentity
             ) annotations += AnnotationSpec.builder(notNullAnnotation)
                 .useSiteTarget(AnnotationSpec.UseSiteTarget.GET)
                 .build()
 
             if (propType.simpleName == "String") {
-                val length = columnDefinition.getType(resolver()).length
+                val length = type.length
                 if (length > 0) annotations += AnnotationSpec.builder(sizeAnnotation)
                     .addMember("max = %L", length)
                     .useSiteTarget(AnnotationSpec.UseSiteTarget.GET)
                     .build()
 
             } else if (propType.simpleName == "BigDecimal" || propType.simpleName == "BigInteger") {
-                val fraction = columnDefinition.getType(resolver()).scale
-                val integer = columnDefinition.getType(resolver()).precision - fraction
+                val fraction = type.scale
+                val integer = type.precision - fraction
                 annotations += AnnotationSpec.builder(digitsAnnotation)
                     .addMember("integer = %L", integer)
                     .addMember("fraction = %L", fraction)
                     .useSiteTarget(AnnotationSpec.UseSiteTarget.GET)
                     .build()
             }
+
+            val pk = columnDefinition.primaryKey
+            if (pk != null && pk.keyColumns.size == 1) {
+                annotations += AnnotationSpec.builder(idAnnotation)
+                    .useSiteTarget(AnnotationSpec.UseSiteTarget.GET)
+                    .build()
+                if (pk.keyColumns.first()?.isIdentity == true)
+                    annotations += AnnotationSpec.builder(generatedValueAnnotation)
+                        .useSiteTarget(AnnotationSpec.UseSiteTarget.GET)
+                        .addMember("strategy = %T", identityType)
+                        .build()
+            }
+
+            annotations += AnnotationSpec.builder(columnAnnotation)
+                .useSiteTarget(AnnotationSpec.UseSiteTarget.GET)
+                .apply {
+                    val length = type.length
+                    val precision = type.precision
+                    if (length > 0) addMember("length = %L", length)
+                    else if (precision > 0) {
+                        addMember("precision = %L", precision)
+                        val scale = type.scale
+                        if (scale > 0) addMember("scale  = %L", scale)
+                    }
+                    addMember("nullable = %L", type.isNullable)
+                    if (columnDefinition.uniqueKeys.firstOrNull()?.keyColumns?.size == 1)
+                        addMember("unique = %L", true)
+                    addMember("name = %S", columnDefinition.name)
+                }
+                .build()
         }
         return annotations
     }
@@ -454,13 +493,13 @@ open class KotlinJooqGenerator : JavaGenerator() {
             .apply {
                 if (columns.size > 1) columns.take(columns.size - 1).forEach {
                     val name = it.getPropertyName()
-                    addStatement("""append("${name.replace("\$", "\\\$").removePrefix("`").removeSuffix("`")} = ")""")
+                    addStatement("""append("${name.replace("\$", "\\\$").removePrefix("`").removeSuffix("`")}=")""")
                     addStatement("append($name)")
                     addStatement("""append(", ")""")
                 }
                 columns.last().let {
                     val name = it.getPropertyName()
-                    addStatement("""append("${name.replace("\$", "\\\$").removePrefix("`").removeSuffix("`")} = ")""")
+                    addStatement("""append("${name.replace("\$", "\\\$").removePrefix("`").removeSuffix("`")}=")""")
                     addStatement("append($name)")
                 }
             }
