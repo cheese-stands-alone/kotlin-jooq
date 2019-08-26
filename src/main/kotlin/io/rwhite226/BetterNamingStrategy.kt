@@ -6,7 +6,7 @@ import org.jooq.meta.*
 
 class BetterNamingStrategy : DefaultGeneratorStrategy() {
 
-    fun String.isUpperCase() = all { it.isUpperCase() }
+    fun String.isUpperCase() = this == this.toUpperCase()
 
     open fun getJavaClassName0(definition: Definition, mode: Mode): String = buildString {
         val words = definition.outputName
