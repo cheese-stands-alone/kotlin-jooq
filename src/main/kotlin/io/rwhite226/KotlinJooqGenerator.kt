@@ -59,6 +59,7 @@ open class KotlinJooqGenerator : JavaGenerator() {
     open val dataClasses by lazy { db.properties.getProperty("dataclasses") == "true" }
     open val copy by lazy { db.properties.getProperty("copy") == "true" }
     open val destructuring by lazy { db.properties.getProperty("destructuring") == "true" }
+    open val introspected by lazy { db.properties.getProperty("introspected") == "true" }
 
     /**
      *  overrideing the strategy to get around issues with how kotlin deals with getter and setters for paramaters that
@@ -395,7 +396,7 @@ open class KotlinJooqGenerator : JavaGenerator() {
                 }
                 .build()
         }
-        if (table.database.properties.getProperty("micronaut") == "true" && generateValidationAnnotations()) {
+        if (table.database.properties.getProperty("micronaut") == "true" && introspected) {
             annotations.add(AnnotationSpec.builder(introspectedAnnotation).build())
         }
         return annotations
