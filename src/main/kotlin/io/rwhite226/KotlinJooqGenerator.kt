@@ -411,7 +411,7 @@ open class KotlinJooqGenerator : JavaGenerator() {
         val type = columnDefinition.getType(resolver())
         if (generateValidationAnnotations()) {
             if (!type.isNullable &&
-                !type.isDefaulted &&
+              //  !type.isDefaulted &&
                 !type.isIdentity
             ) annotations += AnnotationSpec.builder(notNullAnnotation)
                 .useSiteTarget(AnnotationSpec.UseSiteTarget.GET)
