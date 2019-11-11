@@ -564,8 +564,8 @@ open class KotlinJooqGenerator : JavaGenerator() {
                     if (clazzOrId == "org.springframework.beans.factory.annotation.Autowired") {
                         return super.ref("javax.inject.Inject")
                     } else if (clazzOrId == "org.springframework.stereotype.Repository") {
-                        super.println("@%s", super.ref("javax.inject.Singleton"))
-                        return super.ref("io.micronaut.context.annotation.Parallel")
+                        //super.println("@%s", super.ref("io.micronaut.context.annotation.Parallel"))
+                        return super.ref("javax.inject.Singleton")
                     }
                     return super.ref(clazzOrId)
                 }
