@@ -1,6 +1,7 @@
 package io.rwhite226
 
 import com.squareup.kotlinpoet.*
+import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import org.jooq.Constants
 import org.jooq.SortOrder
 import org.jooq.codegen.GeneratorStrategy
@@ -59,7 +60,7 @@ open class KotlinJooqGenerator : JavaGenerator() {
     open val dataClasses by lazy { db.properties.getProperty("dataclasses") == "true" }
     open val copy by lazy { db.properties.getProperty("copy") == "true" }
     open val destructuring by lazy { db.properties.getProperty("destructuring") == "true" }
-    open val introspected by lazy { db.properties.getProperty("introspected") == "true" }
+    open val isToArray by lazy { db.properties.getProperty("toArray") == "true" }
 
     /**
      *  overrideing the strategy to get around issues with how kotlin deals with getter and setters for paramaters that
@@ -193,6 +194,8 @@ open class KotlinJooqGenerator : JavaGenerator() {
                                 .build()
                         )
                     }
+
+                    if (isToArray) addFunction(buildToArray(columns).build())
 
                     if (!isDataClass && generatePojosEqualsAndHashCode()) {
                         addFunction(buildHashcode(columns).build())
@@ -396,7 +399,7 @@ open class KotlinJooqGenerator : JavaGenerator() {
                 }
                 .build()
         }
-        if (table.database.properties.getProperty("micronaut") == "true" && introspected) {
+        if (table.database.properties.getProperty("micronaut") == "true" && generateValidationAnnotations()) {
             annotations.add(AnnotationSpec.builder(introspectedAnnotation).build())
         }
         return annotations
@@ -547,6 +550,18 @@ open class KotlinJooqGenerator : JavaGenerator() {
             .addStatement("else -> false")
             .endControlFlow()
 
+    open fun buildToArray(columns: List<ColumnDefinition>) =
+        FunSpec.builder("toArray")
+            .returns(Array<Any?>::class.asTypeName().parameterizedBy(Any::class.asTypeName().copy(nullable = true)))
+            .addStatement("val array = arrayOfNulls<Any>(${columns.size})")
+            .apply {
+                columns.forEachIndexed { index, col ->
+                    val name = col.getPropertyName()
+                    addStatement("array[$index] = $name")
+                }
+            }
+            .addStatement("return array")
+
     open fun buildFrom(interfaceType: ClassName) = FunSpec.builder("from").addParameter("from", interfaceType)
 
     open fun buildInto(interfaceType: ClassName): FunSpec.Builder {
@@ -564,8 +579,8 @@ open class KotlinJooqGenerator : JavaGenerator() {
                     if (clazzOrId == "org.springframework.beans.factory.annotation.Autowired") {
                         return super.ref("javax.inject.Inject")
                     } else if (clazzOrId == "org.springframework.stereotype.Repository") {
-                        //super.println("@%s", super.ref("io.micronaut.context.annotation.Parallel"))
-                        return super.ref("javax.inject.Singleton")
+                        super.println("@%s", super.ref("javax.inject.Singleton"))
+                        return super.ref("io.micronaut.context.annotation.Parallel")
                     }
                     return super.ref(clazzOrId)
                 }
