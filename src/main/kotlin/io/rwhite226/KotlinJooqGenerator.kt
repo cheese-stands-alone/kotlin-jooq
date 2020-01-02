@@ -399,7 +399,7 @@ open class KotlinJooqGenerator : JavaGenerator() {
                 }
                 .build()
         }
-        if (table.database.properties.getProperty("micronaut") == "true" && generateValidationAnnotations()) {
+        if (table.database.properties.getProperty("micronaut") == "true") {
             annotations.add(AnnotationSpec.builder(introspectedAnnotation).build())
         }
         return annotations
