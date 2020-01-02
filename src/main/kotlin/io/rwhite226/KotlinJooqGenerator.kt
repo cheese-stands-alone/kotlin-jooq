@@ -453,17 +453,17 @@ open class KotlinJooqGenerator : JavaGenerator() {
             val pk = columnDefinition.primaryKey
             if (pk != null && pk.keyColumns.size == 1) {
                 annotations += AnnotationSpec.builder(idAnnotation)
-                    .useSiteTarget(if(mode == Mode.POJO) AnnotationSpec.UseSiteTarget.FIELD else AnnotationSpec.UseSiteTarget.GET)
+                    .useSiteTarget(AnnotationSpec.UseSiteTarget.GET)
                     .build()
                 if (pk.keyColumns.first()?.isIdentity == true)
                     annotations += AnnotationSpec.builder(generatedValueAnnotation)
-                        .useSiteTarget(if(mode == Mode.POJO) AnnotationSpec.UseSiteTarget.FIELD else AnnotationSpec.UseSiteTarget.GET)
+                        .useSiteTarget(AnnotationSpec.UseSiteTarget.GET)
                         .addMember("strategy = %T", identityType)
                         .build()
             }
 
             annotations += AnnotationSpec.builder(columnAnnotation)
-                .useSiteTarget(if(mode == Mode.POJO) AnnotationSpec.UseSiteTarget.FIELD else AnnotationSpec.UseSiteTarget.GET)
+                .useSiteTarget(AnnotationSpec.UseSiteTarget.GET)
                 .apply {
                     val length = type.length
                     val precision = type.precision
