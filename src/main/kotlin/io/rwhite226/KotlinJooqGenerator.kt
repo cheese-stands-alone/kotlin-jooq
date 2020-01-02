@@ -448,6 +448,19 @@ open class KotlinJooqGenerator : JavaGenerator() {
                         .addMember("strategy = %T", identityType)
                         .build()
             }
+        }
+        if(generateJPAAnnotations()) {
+            val pk = columnDefinition.primaryKey
+            if (pk != null && pk.keyColumns.size == 1) {
+                annotations += AnnotationSpec.builder(idAnnotation)
+                    .useSiteTarget(AnnotationSpec.UseSiteTarget.GET)
+                    .build()
+                if (pk.keyColumns.first()?.isIdentity == true)
+                    annotations += AnnotationSpec.builder(generatedValueAnnotation)
+                        .useSiteTarget(AnnotationSpec.UseSiteTarget.GET)
+                        .addMember("strategy = %T", identityType)
+                        .build()
+            }
 
             annotations += AnnotationSpec.builder(columnAnnotation)
                 .useSiteTarget(AnnotationSpec.UseSiteTarget.GET)
